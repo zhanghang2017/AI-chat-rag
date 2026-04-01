@@ -1,0 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: "Inter", ui-sans-serif, system-ui;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-headline {
+  font-family: "Manrope", ui-sans-serif, system-ui;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 20;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes toast-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toast-slide-in {
+  animation: toast-slide-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toast-spin {
+  animation: toast-spin 1.25s linear infinite;
+}

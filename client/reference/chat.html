@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cognitive Architect | AI Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "on-secondary-container": "#54647a",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#eff1f3",
+                        "tertiary-fixed-dim": "#4cd7f6",
+                        "surface-bright": "#f7f9fb",
+                        "on-tertiary-fixed": "#001f26",
+                        "error": "#ba1a1a",
+                        "primary": "#000000",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#00174b",
+                        "on-tertiary-fixed-variant": "#004e5c",
+                        "surface": "#f7f9fb",
+                        "on-surface": "#191c1e",
+                        "on-background": "#191c1e",
+                        "inverse-surface": "#2d3133",
+                        "on-tertiary": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "on-surface-variant": "#45464d",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "secondary": "#505f76",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-primary-container": "#497cff",
+                        "outline-variant": "#c6c6cd",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e6e8ea",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "surface-dim": "#d8dadc",
+                        "surface-container-highest": "#e0e3e5",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary-container": "#0090a9",
+                        "surface-container": "#eceef0",
+                        "primary-container": "#00174b",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#76777d",
+                        "tertiary-container": "#001f26",
+                        "tertiary": "#000000",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "surface-tint": "#0053db",
+                        "tertiary-fixed": "#acedff",
+                        "background": "#ffffff",
+                        "secondary-container": "#d0e1fb",
+                        "inverse-primary": "#b4c5ff"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+            display: inline-block;
+            line-height: 1;
+            vertical-align: middle;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body {
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+</head>
+<body class="bg-white font-body text-on-surface">
+<!-- Top Navigation Bar (Consistent with SCREEN_18) -->
+<header class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md h-16 flex justify-between items-center px-8 border-b border-slate-100">
+<div class="flex items-center gap-12">
+<span class="text-lg font-bold tracking-tight text-black font-headline">Cognitive Architect</span>
+<nav class="hidden md:flex gap-8 h-full items-center">
+<a class="text-black font-semibold text-sm border-b-2 border-black h-16 flex items-center" href="#">AI Chat</a>
+<a class="text-slate-400 font-medium text-sm hover:text-black transition-colors h-16 flex items-center" href="#">Knowledge Base</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block">
+<input class="bg-slate-50 border border-slate-100 rounded-lg px-4 py-1.5 text-sm w-48 focus:ring-1 focus:ring-black outline-none transition-all" placeholder="Search..." type="text"/>
+</div>
+</div>
+</header>
+<div class="flex h-screen overflow-hidden pt-16">
+<!-- Left Sidebar (Identical to SCREEN_18, no settings) -->
+<aside class="w-64 bg-white flex flex-col p-6 gap-2 border-r border-slate-100 shrink-0">
+<button class="border border-slate-200 text-black rounded-lg py-2.5 px-4 mb-8 flex items-center justify-center gap-2 text-sm font-semibold hover:bg-slate-50 transition-all">
+<span class="material-symbols-outlined !text-[18px]">add</span>
+                New Chat
+            </button>
+<nav class="flex flex-col gap-1">
+<a class="bg-slate-100 text-black rounded-lg px-4 py-2 flex items-center gap-3 transition-all text-sm font-semibold" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">chat_bubble</span>
+                    AI Chat
+                </a>
+<a class="text-slate-500 px-4 py-2 flex items-center gap-3 hover:bg-slate-50 rounded-lg transition-all text-sm font-medium" href="#">
+<span class="material-symbols-outlined">database</span>
+                    Knowledge Base
+                </a>
+</nav>
+</aside>
+<!-- Main Chat Area (Minimalist, clean bubbles) -->
+<main class="flex-1 relative flex flex-col min-w-0 bg-white">
+<section class="flex-1 overflow-y-auto no-scrollbar pb-32 pt-8">
+<div class="max-w-3xl mx-auto px-12 space-y-10">
+<!-- Message: Assistant -->
+<div class="space-y-4">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cognitive Engine</span>
+</div>
+<div class="text-[15px] leading-relaxed text-black font-medium max-w-2xl">
+                            How can I assist your research today? I have access to your synchronized Knowledge Base and recent lab data.
+                        </div>
+</div>
+<!-- Message: User -->
+<div class="flex flex-col items-end space-y-4">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Researcher Request</span>
+</div>
+<div class="bg-slate-50 border border-slate-100 px-6 py-4 rounded-2xl text-slate-800 text-sm max-w-xl shadow-sm">
+                            Analyze the correlation between neural network density and emergent reasoning capabilities in the latest benchmarks.
+                        </div>
+</div>
+<!-- Message: Assistant (Complex Response) -->
+<div class="space-y-6">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Processing Insights</span>
+</div>
+<div class="space-y-6">
+<p class="text-[15px] leading-relaxed text-black font-medium max-w-2xl">
+                                Recent data suggests a non-linear scaling law. Emergence typically occurs at a specific parameter threshold relative to token density.
+                            </p>
+<!-- Citation Chips styled like Status tags -->
+<div class="flex flex-wrap gap-2">
+<span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-tight flex items-center gap-1">
+<span class="material-symbols-outlined !text-[14px]">description</span>
+                                    Lab_Notes_Ref_402
+                                </span>
+<span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-tight flex items-center gap-1">
+<span class="material-symbols-outlined !text-[14px]">link</span>
+                                    Scaling_Laws_Paper
+                                </span>
+</div>
+<!-- Source Preview styled like Library Table Row / Card -->
+<div class="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 max-w-2xl">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-slate-400 !text-sm">auto_awesome</span>
+<span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Retrieved Source Fragment</span>
+</div>
+<p class="text-sm text-slate-500 italic leading-relaxed">
+                                    "The inflection point for abstract reasoning tasks was observed specifically when the model density reached 1.2e12 synaptic weights, provided the training data contained &gt;40% structured logic proofs..."
+                                </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Input Anchor (Simple, elegant text input) -->
+<div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-white via-white to-transparent pointer-events-none">
+<div class="max-w-3xl mx-auto pointer-events-auto">
+<div class="relative bg-white border border-slate-200 shadow-sm rounded-xl flex items-center p-1.5 pl-4 transition-all focus-within:ring-1 focus-within:ring-black">
+<textarea class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2.5 px-0 resize-none no-scrollbar h-[42px]" placeholder="Ask the architect..." rows="1"></textarea>
+<button class="bg-black text-white p-2 rounded-lg flex items-center justify-center transition-transform active:scale-95">
+<span class="material-symbols-outlined !text-[18px]">send</span>
+</button>
+</div>
+<div class="mt-4 flex justify-center gap-6 opacity-40">
+<span class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest flex items-center gap-1">
+                            GPT-4 Turbo Enhanced
+                        </span>
+<span class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest flex items-center gap-1">
+                            End-to-End Encrypted
+                        </span>
+</div>
+</div>
+</div>
+</main>
+<!-- Right Drawer (History) - Styled like Library Table in SCREEN_18 -->
+<aside class="w-80 bg-white border-l border-slate-100 flex flex-col shrink-0">
+<div class="p-8 border-b border-slate-50">
+<h2 class="text-lg font-bold font-headline tracking-tight text-black mb-1">Recent Research</h2>
+<p class="text-slate-400 text-xs uppercase tracking-widest font-bold">Chat History</p>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-8">
+<section>
+<h3 class="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Today</h3>
+<div class="space-y-1">
+<button class="w-full text-left px-4 py-3 rounded-lg bg-slate-50 text-sm font-semibold text-black transition-colors flex items-center gap-3">
+<span class="material-symbols-outlined !text-slate-300">description</span>
+                            Neural Network Density Analysis
+                        </button>
+<button class="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-3">
+<span class="material-symbols-outlined !text-slate-200">description</span>
+                            RAG Performance Benchmarks
+                        </button>
+</div>
+</section>
+<section>
+<h3 class="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Yesterday</h3>
+<div class="space-y-1">
+<button class="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-3">
+<span class="material-symbols-outlined !text-slate-200">description</span>
+                            Quantum Computing Ethics
+                        </button>
+<button class="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-3">
+<span class="material-symbols-outlined !text-slate-200">description</span>
+                            Edge AI Optimization
+                        </button>
+</div>
+</section>
+</div>
+<!-- Progress visualization consistent with dashboard elements -->
+<div class="p-6 border-t border-slate-50">
+<div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+<div class="flex items-center justify-between mb-3">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Storage</span>
+<span class="text-[10px] font-bold text-black">82%</span>
+</div>
+<div class="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
+<div class="h-full bg-black rounded-full" style="width: 82%"></div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</body></html>

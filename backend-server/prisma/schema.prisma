@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  queued
+  running
+  success
+  failed
+  cancelled
+}
+
+enum FileParseStatus {
+  pending
+  processing
+  failed
+  indexed
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+model AppUser {
+  id                     String          @id
+  browserFingerprintHash String          @unique @map("browser_fingerprint_hash")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  knowledgeFiles         KnowledgeFile[]
+  ingestionTasks         IngestionTask[]
+  chatSessions           ChatSession[]
+
+  @@map("app_users")
+}
+
+model KnowledgeFile {
+  id            String          @id @default(uuid())
+  userId        String          @map("user_id")
+  fileName      String          @map("file_name")
+  contentMd5    String?         @map("content_md5")
+  fileSizeBytes Int             @map("file_size_bytes")
+  storagePath   String          @map("storage_path")
+  parseStatus   FileParseStatus @default(pending) @map("parse_status")
+  parseVersion  Int             @default(1) @map("parse_version")
+  chunkCount    Int             @default(0) @map("chunk_count")
+  indexedAt     DateTime?       @map("indexed_at")
+  uploadedAt    DateTime        @default(now()) @map("uploaded_at")
+  user          AppUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingestionTasks IngestionTask[]
+  fileChunks    FileChunk[]
+
+  @@unique([userId, contentMd5], map: "uk_knowledge_files_user_md5")
+  @@index([userId, parseStatus, uploadedAt], map: "idx_knowledge_files_user_status_uploaded")
+  @@map("knowledge_files")
+}
+
+model IngestionTask {
+  id           String       @id @default(uuid())
+  userId       String       @map("user_id")
+  fileId       String       @map("file_id")
+  status       TaskStatus   @default(queued)
+  progress     Float        @default(0)
+  errorMessage String?      @map("error_message")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at")
+  user         AppUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file         KnowledgeFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt], map: "idx_ingestion_tasks_user_status_created")
+  @@index([fileId], map: "idx_ingestion_tasks_file")
+  @@map("ingestion_tasks")
+}
+
+model FileChunk {
+  id         String       @id @default(uuid())
+  fileId     String       @map("file_id")
+  chunkIndex Int          @map("chunk_index")
+  vectorId   String       @unique @map("vector_id")
+  collectionName String   @map("collection_name")
+  chunkHash  String       @map("chunk_hash")
+  contentPreview String   @map("content_preview")
+  pageNumber Int?         @map("page_number")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  file       KnowledgeFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, chunkIndex])
+  @@index([fileId, chunkIndex], map: "idx_file_chunks_file_order")
+  @@map("file_chunks")
+}
+
+model ChatSession {
+  id        String        @id @default(uuid())
+  userId    String        @map("user_id")
+  title     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  user      AppUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, createdAt], map: "idx_chat_sessions_user_last_message")
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String      @id @default(uuid())
+  sessionId String      @map("session_id")
+  role      MessageRole
+  content   String
+  createdAt DateTime    @default(now()) @map("created_at")
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt], map: "idx_chat_messages_session_created")
+  @@map("chat_messages")
+}
