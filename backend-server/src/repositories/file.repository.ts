@@ -83,6 +83,28 @@ export async function findFileById(fileId: string) {
   });
 }
 
+export async function findFileDetailById(fileId: string) {
+  return prisma.knowledgeFile.findUnique({
+    where: { id: fileId },
+  });
+}
+
+export async function listFileChunksByFileId(fileId: string, page: number, limit: number) {
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await prisma.$transaction([
+    prisma.fileChunk.findMany({
+      where: { fileId },
+      orderBy: { chunkIndex: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.fileChunk.count({ where: { fileId } }),
+  ]);
+
+  return { items, total };
+}
+
 /**
  * 按条件查询文件列表。
  * @param where 查询过滤条件。
@@ -127,6 +149,32 @@ export async function updateFileById(
   return prisma.knowledgeFile.update({
     where: { id: fileId },
     data,
+  });
+}
+
+export async function resetIndexedFileToPending(fileId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.fileChunk.deleteMany({ where: { fileId } });
+
+    return tx.knowledgeFile.update({
+      where: { id: fileId },
+      data: {
+        parseStatus: "pending",
+        chunkCount: 0,
+        indexedAt: null,
+      },
+    });
+  });
+}
+
+export async function deleteFileById(fileId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.fileChunk.deleteMany({ where: { fileId } });
+    await tx.ingestionTask.deleteMany({ where: { fileId } });
+
+    return tx.knowledgeFile.delete({
+      where: { id: fileId },
+    });
   });
 }
 

@@ -3,16 +3,25 @@ import SparkMD5 from "spark-md5";
 type UploadStatusTone = "success" | "warning" | "error";
 
 import {
+  deleteKnowledgeFile,
   dispatchPendingKnowledgeFile,
   completeChunkUpload,
+  getKnowledgeFileDetail,
   getKnowledgeFiles,
   getChunkUploadStatus,
   initChunkUpload,
+  offloadIndexedKnowledgeFile,
   precheckUploadFile,
   uploadChunk,
   uploadFileDirect,
 } from "../api";
-import type { FileParseStatus, KnowledgeFileInfo, KnowledgeFilesPage, UploadResult } from "../api";
+import type {
+  FileParseStatus,
+  KnowledgeFileDetail,
+  KnowledgeFileInfo,
+  KnowledgeFilesPage,
+  UploadResult,
+} from "../api";
 import { uploadConfig } from "./uploadConfig";
 
 export type KnowledgeBaseUploadOutcome = {
@@ -36,6 +45,8 @@ export type UploadLibraryRow = {
   added: string;
   rawStatus: FileParseStatus;
   canDispatch: boolean;
+  canOffload: boolean;
+  canDelete: boolean;
 };
 
 type UploadCallbacks = {
@@ -117,7 +128,9 @@ export function mapKnowledgeFileToRow(file: KnowledgeFileInfo): UploadLibraryRow
     statusTone: statusDisplay.tone,
     added: formatAddedLabel(file.uploadedAt),
     rawStatus: file.parseStatus,
-    canDispatch: file.parseStatus === "pending"||file.parseStatus === "failed",
+    canDispatch: file.parseStatus === "pending" || file.parseStatus === "failed",
+    canOffload: file.parseStatus === "indexed",
+    canDelete: file.parseStatus === "pending" || file.parseStatus === "failed",
   };
 }
 
@@ -175,9 +188,27 @@ export async function fetchKnowledgeBaseRows(
   };
 }
 
+export async function fetchKnowledgeFileDetailById(
+  fileId: string,
+  options?: { page?: number; limit?: number },
+): Promise<KnowledgeFileDetail> {
+  const userId = getOrCreateUserId();
+  return getKnowledgeFileDetail(fileId, userId, options);
+}
+
 export async function requestPendingFileIngestion(fileId: string) {
   const userId = getOrCreateUserId();
   return dispatchPendingKnowledgeFile(fileId, userId);
+}
+
+export async function requestIndexedFileOffload(fileId: string) {
+  const userId = getOrCreateUserId();
+  return offloadIndexedKnowledgeFile(fileId, userId);
+}
+
+export async function requestKnowledgeFileDeletion(fileId: string) {
+  const userId = getOrCreateUserId();
+  return deleteKnowledgeFile(fileId, userId);
 }
 
 /**

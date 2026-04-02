@@ -7,6 +7,7 @@ import {
   chunkUploadInitBodySchema,
   chunkUploadStatusQuerySchema,
   fileParamsSchema,
+  fileDetailQuerySchema,
   filePrecheckBodySchema,
   filesQuerySchema,
   fingerprintSchema,
@@ -183,6 +184,22 @@ export async function getFiles(req: Request, res: Response, next: NextFunction) 
   }
 }
 
+export async function getFileDetail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { fileId } = validate(fileParamsSchema, req.params || {}, "path params");
+    const query = validate(fileDetailQuerySchema, req.query || {}, "query params");
+    const file = await fileService.getFileDetail({
+      userId: query.userId,
+      fileId,
+      page: query.page,
+      limit: query.limit,
+    });
+    res.json({ data: file });
+  } catch (error) {
+    next(error);
+  }
+}
+
 /**
  * 根据任务 ID 获取 ingestion 任务状态。
  * @param req Express 请求对象。
@@ -206,6 +223,28 @@ export async function dispatchPendingFileIngestion(req: Request, res: Response, 
     const { userId } = validate(fingerprintSchema, req.body || {}, "request body");
     const result = await fileService.dispatchPendingFileIngestion({ userId, fileId });
     res.status(202).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function offloadIndexedFile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { fileId } = validate(fileParamsSchema, req.params || {}, "path params");
+    const { userId } = validate(fingerprintSchema, req.body || {}, "request body");
+    const result = await fileService.offloadIndexedFile({ userId, fileId });
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteKnowledgeFile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { fileId } = validate(fileParamsSchema, req.params || {}, "path params");
+    const { userId } = validate(fingerprintSchema, req.body || {}, "request body");
+    const result = await fileService.deleteKnowledgeFile({ userId, fileId });
+    res.json({ data: result });
   } catch (error) {
     next(error);
   }

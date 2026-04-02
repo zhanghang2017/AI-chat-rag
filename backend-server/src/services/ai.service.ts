@@ -14,6 +14,7 @@ interface AiChatResult {
 const AI_SERVICE_BASE_URL = process.env.AI_SERVICE_BASE_URL || "http://127.0.0.1:8000";
 const AI_SERVICE_TIMEOUT_MS = Number(process.env.AI_SERVICE_TIMEOUT_MS || 12000);
 const ingestionEndpoint = process.env.AI_INGESTION_ENDPOINT || `${AI_SERVICE_BASE_URL}/ingestion/jobs`;
+const vectorDeleteEndpoint = process.env.AI_VECTOR_DELETE_ENDPOINT || `${AI_SERVICE_BASE_URL}/vectors/files`;
 const aiServiceSharedSecret = process.env.AI_SERVICE_SHARED_SECRET || "";
 
 /**
@@ -100,5 +101,44 @@ export async function dispatchIngestionTask(payload: {
     });
   } catch {
     // Ignore dispatch failure here; worker can retry from pending tasks.
+  }
+}
+
+/**
+ * 删除某个文件在 AI 向量服务中的全部向量分块。
+ * @param fileId 文件 ID。
+ * @returns 无返回值。
+ */
+export async function deleteFileVectors(fileId: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_SERVICE_TIMEOUT_MS);
+
+  try {
+    const headers: Record<string, string> = {};
+    if (aiServiceSharedSecret) {
+      headers["x-ai-service-secret"] = aiServiceSharedSecret;
+    }
+
+    const response = await fetch(`${vectorDeleteEndpoint}/${encodeURIComponent(fileId)}`, {
+      method: "DELETE",
+      headers,
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw createApiError(502, "AI_SERVICE_ERROR", `AI service returned ${response.status}`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw createApiError(504, "AI_SERVICE_TIMEOUT", "AI service timeout");
+    }
+
+    if ((error as { code?: string })?.code) {
+      throw error;
+    }
+
+    throw createApiError(502, "AI_SERVICE_UNAVAILABLE", "AI service unavailable");
+  } finally {
+    clearTimeout(timer);
   }
 }

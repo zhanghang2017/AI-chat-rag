@@ -27,7 +27,12 @@ type KnowledgeTableProps = {
   pageSize: number;
   onPageSizeChange: (pageSize: number) => void;
   dispatchingRowIds?: string[];
+  offloadingRowIds?: string[];
+  deletingRowIds?: string[];
+  onOpenIndexedRow?: (row: UploadLibraryRow) => void;
   onDispatchRow?: (row: UploadLibraryRow) => void;
+  onOffloadRow?: (row: UploadLibraryRow) => void;
+  onDeleteRow?: (row: UploadLibraryRow) => void;
 };
 
 const KnowledgeTable = ({
@@ -46,12 +51,19 @@ const KnowledgeTable = ({
   pageSize,
   onPageSizeChange,
   dispatchingRowIds = [],
+  offloadingRowIds = [],
+  deletingRowIds = [],
+  onOpenIndexedRow,
   onDispatchRow,
+  onOffloadRow,
+  onDeleteRow,
 }: KnowledgeTableProps) => {
   const emptyMessage = isLoading
     ? "Loading files..."
     : error || "No files have entered the knowledge base yet.";
   const dispatchingSet = new Set(dispatchingRowIds);
+  const offloadingSet = new Set(offloadingRowIds);
+  const deletingSet = new Set(deletingRowIds);
 
   return (
     <div>
@@ -65,11 +77,10 @@ const KnowledgeTable = ({
             {filterOptions.map((option) => (
               <button
                 key={option.value}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                  activeFilter === option.value
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${activeFilter === option.value
                     ? "border-black bg-black text-white"
                     : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-black"
-                }`}
+                  }`}
                 onClick={() => onFilterChange(option.value)}
                 type="button"
               >
@@ -98,13 +109,13 @@ const KnowledgeTable = ({
               <th className="py-3 font-medium">Name</th>
               <th className="py-3 font-medium">Size</th>
               <th className="py-3 font-medium">Status</th>
-              <th className="py-3 font-medium">Action</th>
               <th className="py-3 text-right font-medium">Added</th>
+              <th className="py-3 text-right font-medium">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {rows.length > 0 ? rows.map((row) => (
-              <tr key={row.id} className="group transition-colors hover:bg-slate-50/50">
+              <tr key={row.id}   onClick={() => onOpenIndexedRow?.(row)} className="group transition-colors hover:bg-slate-50/50">
                 <td className="py-3">
                   <div className="flex items-center gap-3">
                     <MaterialIcon name={row.icon} className="text-slate-300" />
@@ -113,36 +124,57 @@ const KnowledgeTable = ({
                 </td>
                 <td className="py-3 text-sm text-slate-500">{row.size}</td>
                 <td className="py-3">
+
                   <span
-                    className={`text-[11px] font-bold uppercase tracking-tight ${
-                      row.statusTone === "success"
+                    className={`text-[11px] font-bold uppercase tracking-tight ${row.statusTone === "success"
                         ? "text-emerald-600"
                         : row.statusTone === "warning"
                           ? "text-amber-600"
                           : "text-rose-600"
-                    }`}
+                      }`}
                   >
                     {row.status}
                   </span>
-                </td>
-                <td className="py-3">
-                  {row.canDispatch ?
-                    <button
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d6c1a1] bg-[#fff6ea] text-[#7b5a28] transition-colors hover:border-[#b98b47] hover:bg-[#ffefd8] disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={dispatchingSet.has(row.id)}
-                      onClick={() => onDispatchRow?.(row)}
-                      title={dispatchingSet.has(row.id) ? "Starting ingestion" : "Start ingestion"}
-                      type="button"
-                    >
-                      <MaterialIcon
-                        name={dispatchingSet.has(row.id) ? "progress_activity" : "play_arrow"}
-                        className={dispatchingSet.has(row.id) ? "!text-[18px] animate-spin" : "!text-[18px]"}
-                        filled={!dispatchingSet.has(row.id)}
-                      />
-                    </button>
-                    : <span className="text-xs text-slate-300">-</span>}
+
                 </td>
                 <td className="py-3 text-right text-sm text-slate-400">{row.added}</td>
+                <td className="py-3">
+                  <div className="flex justify-end gap-2 text-xs font-semibold">
+                    {row.canDispatch ? (
+                      <button
+                        className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-amber-800 transition-colors hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={dispatchingSet.has(row.id)}
+                        onClick={() => onDispatchRow?.(row)}
+                        type="button"
+                      >
+                        {dispatchingSet.has(row.id) ? "Dispatching..." : "Dispatch"}
+                      </button>
+                    ) : null}
+                    {row.canOffload ? (
+                      <button
+                        className="rounded-md border border-sky-300 bg-sky-50 px-3 py-1.5 text-sky-800 transition-colors hover:border-sky-400 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={offloadingSet.has(row.id)}
+                        onClick={() => onOffloadRow?.(row)}
+                        type="button"
+                      >
+                        {offloadingSet.has(row.id) ? "Offloading..." : "Offload"}
+                      </button>
+                    ) : null}
+                    {row.canDelete ? (
+                      <button
+                        className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-rose-700 transition-colors hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={deletingSet.has(row.id)}
+                        onClick={() => onDeleteRow?.(row)}
+                        type="button"
+                      >
+                        {deletingSet.has(row.id) ? "Deleting..." : "Delete File"}
+                      </button>
+                    ) : null}
+                    {!row.canDispatch && !row.canOffload && !row.canDelete ? (
+                      <span className="text-xs text-slate-300">-</span>
+                    ) : null}
+                  </div>
+                </td>
               </tr>
             )) : (
               <tr>

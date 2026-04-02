@@ -112,6 +112,23 @@ export const fileParamsSchema = z.object({
   fileId: z.string().uuid(),
 });
 
+export const fileDetailQuerySchema = z.object({
+  userId: z.string().min(1).optional(),
+  browserFingerprintHash: z.string().min(1).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(20),
+})
+  .superRefine((data, ctx) => {
+    if (!resolveRequiredUserId(data)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["userId"], message: "Required" });
+    }
+  })
+  .transform((data) => ({
+    userId: resolveRequiredUserId(data)!,
+    page: data.page,
+    limit: data.limit,
+  }));
+
 export const createSessionBodySchema = z
   .object({
     userId: z.string().min(1).optional(),

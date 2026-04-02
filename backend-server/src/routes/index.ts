@@ -18,7 +18,10 @@ router.post("/files/upload/chunked/chunk", upload.single("file"), fileController
 router.get("/files/upload/chunked/status", fileController.getChunkUploadStatus);
 router.post("/files/upload/chunked/complete", fileController.completeChunkUpload);
 router.get("/files", requireFingerprint, fileController.getFiles);
+router.get("/files/:fileId/detail", requireFingerprint, fileController.getFileDetail);
 router.post("/files/:fileId/ingest", requireFingerprint, fileController.dispatchPendingFileIngestion);
+router.post("/files/:fileId/offload", requireFingerprint, fileController.offloadIndexedFile);
+router.delete("/files/:fileId", requireFingerprint, fileController.deleteKnowledgeFile);
 router.get("/files/events", requireFingerprint, fileController.streamFileEvents);
 router.get("/tasks/:taskId", fileController.getTask);
 

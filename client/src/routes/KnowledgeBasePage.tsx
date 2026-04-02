@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useIngestionEvents } from "../components/IngestionEventProvider";
 import LeftSidebar from "../components/LeftSidebar";
 import KnowledgeTable from "../components/KnowledgeTable";
@@ -6,6 +7,8 @@ import MaterialIcon from "../components/MaterialIcon";
 import TopHeader from "../components/TopHeader";
 import {
   fetchKnowledgeBaseRows,
+  requestIndexedFileOffload,
+  requestKnowledgeFileDeletion,
   requestPendingFileIngestion,
   uploadFileToKnowledgeBase,
 } from "../workservice/uploadWorkservice";
@@ -25,8 +28,11 @@ const KnowledgeBasePage = () => {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadPhase, setUploadPhase] = useState<string>("");
   const [dispatchingRowIds, setDispatchingRowIds] = useState<string[]>([]);
+  const [offloadingRowIds, setOffloadingRowIds] = useState<string[]>([]);
+  const [deletingRowIds, setDeletingRowIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { latestEvent } = useIngestionEvents();
+  const navigate = useNavigate();
 
   async function refreshRows(options?: { silent?: boolean }) {
     if (!options?.silent) {
@@ -161,6 +167,43 @@ const KnowledgeBasePage = () => {
     }
   }
 
+  async function handleOffloadRow(row: UploadLibraryRow) {
+    setLoadError("");
+    setOffloadingRowIds((current) => (current.includes(row.id) ? current : [...current, row.id]));
+
+    try {
+      await requestIndexedFileOffload(row.id);
+      setUploadMessage(`${row.name}: 已出库，可重新入库`);
+      await refreshRows({ silent: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to offload file";
+      setLoadError(message);
+    } finally {
+      setOffloadingRowIds((current) => current.filter((id) => id !== row.id));
+    }
+  }
+
+  async function handleDeleteRow(row: UploadLibraryRow) {
+    const confirmed = window.confirm(`确认删除文件 “${row.name}” 吗？`);
+    if (!confirmed) {
+      return;
+    }
+
+    setLoadError("");
+    setDeletingRowIds((current) => (current.includes(row.id) ? current : [...current, row.id]));
+
+    try {
+      await requestKnowledgeFileDeletion(row.id);
+      setUploadMessage(`${row.name}: 已删除`);
+      await refreshRows({ silent: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete file";
+      setLoadError(message);
+    } finally {
+      setDeletingRowIds((current) => current.filter((id) => id !== row.id));
+    }
+  }
+
   return (
     <div className="bg-white font-sans text-[#191c1e]">
       <TopHeader active="knowledge" />
@@ -231,8 +274,22 @@ const KnowledgeBasePage = () => {
               pageSize={pageSize}
               onPageSizeChange={setPageSize}
               dispatchingRowIds={dispatchingRowIds}
+              offloadingRowIds={offloadingRowIds}
+              deletingRowIds={deletingRowIds}
+              onOpenIndexedRow={(row) => {
+                if (row.rawStatus !== "indexed") {
+                  return;
+                }
+                navigate(`/knowledge-base/files/${row.id}`);
+              }}
               onDispatchRow={(row) => {
                 void handleDispatchRow(row);
+              }}
+              onOffloadRow={(row) => {
+                void handleOffloadRow(row);
+              }}
+              onDeleteRow={(row) => {
+                void handleDeleteRow(row);
               }}
             />
 

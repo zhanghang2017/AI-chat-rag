@@ -1,3 +1,10 @@
+/*
+ * @Editor: zhanghang
+ * @Description: 
+ * @Date: 2026-04-02 09:26:01
+ * @LastEditors: zhanghang
+ * @LastEditTime: 2026-04-02 16:11:45
+ */
 import { historyItems } from "../data/mockData";
 import MaterialIcon from "./MaterialIcon";
 
@@ -47,17 +54,6 @@ const ChatHistoryDrawer = () => {
             ))}
           </div>
         </section>
-      </div>
-      <div className="border-t border-slate-50 p-6">
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Storage</span>
-            <span className="text-[10px] font-bold text-black">82%</span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full w-[82%] rounded-full bg-black"></div>
-          </div>
-        </div>
       </div>
     </aside>
   );

@@ -33,7 +33,10 @@ function getToastStage(event: IngestionStreamEvent): IngestionToastStage | null 
     return null;
   }
 
-  if (event.file.parseStatus === "pending" || event.file.parseStatus === "processing") {
+  if (
+    (event.file.parseStatus === "pending" || event.file.parseStatus === "processing")
+    && (event.task?.status === "queued" || event.task?.status === "running")
+  ) {
     return "started";
   }
 
@@ -55,7 +58,10 @@ function buildIngestionToast(event: IngestionStreamEvent): IngestionToastItem | 
 
   const file = event.file;
 
-  if (file.parseStatus === "pending" || file.parseStatus === "processing") {
+  if (
+    (file.parseStatus === "pending" || file.parseStatus === "processing")
+    && (event.task?.status === "queued" || event.task?.status === "running")
+  ) {
     return {
       id: file.id,
       fileId: file.id,

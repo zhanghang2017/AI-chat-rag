@@ -13,6 +13,7 @@ import { publishIngestionEvent, subscribeToIngestionEvents } from "./ingestionEv
 const uploadDir = path.resolve(process.cwd(), "upload");
 const uploadTmpDir = path.resolve(uploadDir, "tmp");
 const uploadChunkRootDir = path.resolve(uploadDir, "chunks");
+const cjkFileNameRegex = /[\u3400-\u9fff\uf900-\ufaff]/u;
 
 type FileParseStatus = "pending" | "processing" | "failed" | "indexed";
 type TaskStatus = "queued" | "running" | "success" | "failed" | "cancelled";
@@ -54,6 +55,37 @@ export type KnowledgeFileListResponse = {
   };
 };
 
+export type KnowledgeFileDetail = {
+  id: string;
+  fileName: string;
+  fileSizeBytes: number;
+  parseStatus: FileParseStatus;
+  parseVersion: number;
+  chunkCount: number;
+  contentMd5: string | null;
+  storagePath: string;
+  indexedAt: Date | null;
+  uploadedAt: Date;
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  };
+  chunks: Array<{
+    id: string;
+    chunkIndex: number;
+    vectorId: string;
+    collectionName: string;
+    chunkHash: string;
+    contentPreview: string;
+    pageNumber: number | null;
+    createdAt: Date;
+  }>;
+};
+
 export type UploadedFileResult = {
   file: {
     id: string;
@@ -74,6 +106,19 @@ type ChunkUploadManifest = {
   receivedChunks: number[];
   createdAt: string;
 };
+
+function normalizeUploadedFileName(fileName: string) {
+  if (!fileName || cjkFileNameRegex.test(fileName)) {
+    return fileName;
+  }
+
+  const decoded = Buffer.from(fileName, "latin1").toString("utf8");
+  if (decoded.includes("\uFFFD")) {
+    return fileName;
+  }
+
+  return cjkFileNameRegex.test(decoded) ? decoded : fileName;
+}
 
 function mapTaskStatusToFileStatus(status: TaskStatus): FileParseStatus {
   switch (status) {
@@ -159,7 +204,7 @@ function publishTaskAndFileUpdate(
       indexedAt: Date | null;
       uploadedAt: Date;
     };
-    task: {
+    task?: {
       id: string;
       status: string;
       progress: number;
@@ -170,7 +215,7 @@ function publishTaskAndFileUpdate(
   publishIngestionEvent(userId, {
     type: "ingestion.updated",
     file: toKnowledgeFileListItem(payload.file),
-    task: toIngestionTaskItem(payload.task),
+    task: payload.task ? toIngestionTaskItem(payload.task) : undefined,
   });
 }
 
@@ -261,8 +306,9 @@ async function writeChunkManifest(manifest: ChunkUploadManifest) {
  * @returns 新创建的文件记录。
  */
 async function processUploadedTempFile(payload: { userId: string; tempFilePath: string; originalName: string; sizeBytes: number }) {
+  const normalizedOriginalName = normalizeUploadedFileName(payload.originalName);
   const contentMd5 = await computeFileMd5(payload.tempFilePath);
-  const ext = path.extname(payload.originalName || "") || ".bin";
+  const ext = path.extname(normalizedOriginalName || "") || ".bin";
   const storageRelativePath = path.join("upload", payload.userId, `${contentMd5}${ext}`).replace(/\\/g, "/");
   const storageAbsolutePath = path.resolve(process.cwd(), storageRelativePath);
 
@@ -283,7 +329,7 @@ async function processUploadedTempFile(payload: { userId: string; tempFilePath: 
   try {
     result = await fileRepository.createFileAndTask({
       userId: payload.userId,
-      fileName: payload.originalName,
+      fileName: normalizedOriginalName,
       contentMd5,
       fileSizeBytes: payload.sizeBytes,
       storagePath: storageRelativePath,
@@ -401,10 +447,11 @@ export async function uploadFile(payload: { userId: string; file: Express.Multer
  */
 export async function initChunkUpload(payload: { uploadId: string; userId: string; fileName: string; fileSizeBytes: number; totalChunks: number }) {
   const uploadId = payload.uploadId;
+  const normalizedFileName = normalizeUploadedFileName(payload.fileName);
 
   try {
     const existed = await readChunkManifest(uploadId);
-    if (existed.userId !== payload.userId || existed.fileName !== payload.fileName || existed.fileSizeBytes !== payload.fileSizeBytes) {
+    if (existed.userId !== payload.userId || existed.fileName !== normalizedFileName || existed.fileSizeBytes !== payload.fileSizeBytes) {
       throw createApiError(409, "UPLOAD_SESSION_CONFLICT", "Upload session already exists with different file metadata");
     }
 
@@ -424,7 +471,7 @@ export async function initChunkUpload(payload: { uploadId: string; userId: strin
   const manifest: ChunkUploadManifest = {
     uploadId,
     userId: payload.userId,
-    fileName: payload.fileName,
+    fileName: normalizedFileName,
     fileSizeBytes: payload.fileSizeBytes,
     totalChunks: payload.totalChunks,
     receivedChunks: [],
@@ -555,6 +602,51 @@ export async function getFiles(query: { userId: string; parseStatus?: FileParseS
   };
 }
 
+export async function getFileDetail(payload: { userId: string; fileId: string; page: number; limit: number }): Promise<KnowledgeFileDetail> {
+  const file = await fileRepository.findFileDetailById(payload.fileId);
+  if (!file) {
+    throw createApiError(404, "FILE_NOT_FOUND", "File not found");
+  }
+
+  if (file.userId !== payload.userId) {
+    throw createApiError(403, "FILE_ACCESS_DENIED", "File does not belong to current user");
+  }
+
+  const chunkPage = await fileRepository.listFileChunksByFileId(payload.fileId, payload.page, payload.limit);
+  const totalPages = Math.max(1, Math.ceil(chunkPage.total / payload.limit));
+
+  return {
+    id: file.id,
+    fileName: file.fileName,
+    fileSizeBytes: file.fileSizeBytes,
+    parseStatus: normalizeFileParseStatus(file.parseStatus),
+    parseVersion: file.parseVersion,
+    chunkCount: file.chunkCount,
+    contentMd5: file.contentMd5,
+    storagePath: file.storagePath,
+    indexedAt: file.indexedAt,
+    uploadedAt: file.uploadedAt,
+    pagination: {
+      page: payload.page,
+      limit: payload.limit,
+      totalItems: chunkPage.total,
+      totalPages,
+      hasPreviousPage: payload.page > 1,
+      hasNextPage: payload.page < totalPages,
+    },
+    chunks: chunkPage.items.map((chunk) => ({
+      id: chunk.id,
+      chunkIndex: chunk.chunkIndex,
+      vectorId: chunk.vectorId,
+      collectionName: chunk.collectionName,
+      chunkHash: chunk.chunkHash,
+      contentPreview: chunk.contentPreview,
+      pageNumber: chunk.pageNumber,
+      createdAt: chunk.createdAt,
+    })),
+  };
+}
+
 /**
  * 查询单个 ingestion 任务。
  * @param taskId 任务 ID。
@@ -619,6 +711,81 @@ export async function dispatchPendingFileIngestion(payload: { userId: string; fi
     accepted: true,
     file: toKnowledgeFileListItem(file),
     task: toIngestionTaskItem(queuedTask),
+  };
+}
+
+export async function offloadIndexedFile(payload: { userId: string; fileId: string }) {
+  const file = await fileRepository.findFileById(payload.fileId);
+  if (!file) {
+    throw createApiError(404, "FILE_NOT_FOUND", "File not found");
+  }
+
+  if (file.userId !== payload.userId) {
+    throw createApiError(403, "FILE_ACCESS_DENIED", "File does not belong to current user");
+  }
+
+  if (file.parseStatus !== "indexed") {
+    throw createApiError(409, "FILE_STATUS_INVALID", "Only indexed files can be offloaded");
+  }
+
+  await aiService.deleteFileVectors(file.id);
+
+  const latestTask = await taskRepository.findLatestTaskByFileId(file.id);
+  const updatedTask = latestTask
+    ? await taskRepository.updateTaskById(latestTask.id, {
+        status: "cancelled",
+        progress: 0,
+        errorMessage: null,
+      })
+    : undefined;
+
+  const updatedFile = await fileRepository.resetIndexedFileToPending(file.id);
+
+  publishTaskAndFileUpdate(updatedFile.userId, {
+    file: updatedFile,
+    task: updatedTask,
+  });
+
+  return {
+    success: true,
+    file: toKnowledgeFileListItem(updatedFile),
+    task: updatedTask ? toIngestionTaskItem(updatedTask) : null,
+  };
+}
+
+export async function deleteKnowledgeFile(payload: { userId: string; fileId: string }) {
+  const file = await fileRepository.findFileById(payload.fileId);
+  if (!file) {
+    throw createApiError(404, "FILE_NOT_FOUND", "File not found");
+  }
+
+  if (file.userId !== payload.userId) {
+    throw createApiError(403, "FILE_ACCESS_DENIED", "File does not belong to current user");
+  }
+
+  if (file.parseStatus === "processing") {
+    throw createApiError(409, "FILE_STATUS_INVALID", "Processing files cannot be deleted");
+  }
+
+  if (file.parseStatus === "indexed" || file.chunkCount > 0) {
+    await aiService.deleteFileVectors(file.id);
+  }
+
+  const absoluteFilePath = path.resolve(process.cwd(), file.storagePath);
+  await unlink(absoluteFilePath).catch(() => {
+    // Ignore missing physical files so metadata cleanup can still finish.
+  });
+
+  const deletedFile = await fileRepository.deleteFileById(file.id);
+
+  publishIngestionEvent(deletedFile.userId, {
+    type: "knowledge.deleted",
+    file: toKnowledgeFileListItem(deletedFile),
+  });
+
+  return {
+    success: true,
+    fileId: deletedFile.id,
   };
 }
 

@@ -22,6 +22,39 @@ export type KnowledgeFilesPage = {
   };
 };
 
+export type KnowledgeFileChunkDetail = {
+  id: string;
+  chunkIndex: number;
+  vectorId: string;
+  collectionName: string;
+  chunkHash: string;
+  contentPreview: string;
+  pageNumber: number | null;
+  createdAt: string;
+};
+
+export type KnowledgeFileDetail = {
+  id: string;
+  fileName: string;
+  fileSizeBytes: number;
+  parseStatus: FileParseStatus;
+  parseVersion: number;
+  chunkCount: number;
+  contentMd5: string | null;
+  storagePath: string;
+  indexedAt: string | null;
+  uploadedAt: string;
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  };
+  chunks: KnowledgeFileChunkDetail[];
+};
+
 export type IngestionStreamEvent = {
   type: string;
   timestamp: string;
@@ -47,6 +80,18 @@ export type ManualIngestionDispatchResult = {
     progress: number;
     errorMessage: string | null;
   };
+};
+
+export type FileMutationResult = {
+  success: boolean;
+  file?: KnowledgeFileInfo;
+  task?: {
+    id: string;
+    status: string;
+    progress: number;
+    errorMessage: string | null;
+  } | null;
+  fileId?: string;
 };
 
 export type UploadPrecheckResult = {
@@ -104,6 +149,21 @@ export async function getKnowledgeFiles(
   }
 
   return requestApi<KnowledgeFilesPage>(`/files?${params.toString()}`);
+}
+
+export async function getKnowledgeFileDetail(
+  fileId: string,
+  userId: string,
+  options?: { page?: number; limit?: number },
+): Promise<KnowledgeFileDetail> {
+  const params = new URLSearchParams({ userId });
+  if (typeof options?.page === "number") {
+    params.set("page", String(options.page));
+  }
+  if (typeof options?.limit === "number") {
+    params.set("limit", String(options.limit));
+  }
+  return requestApi<KnowledgeFileDetail>(`/files/${encodeURIComponent(fileId)}/detail?${params.toString()}`);
 }
 
 /**
@@ -186,6 +246,22 @@ export async function completeChunkUpload(uploadId: string): Promise<UploadResul
 export async function dispatchPendingKnowledgeFile(fileId: string, userId: string): Promise<ManualIngestionDispatchResult> {
   return requestApi<ManualIngestionDispatchResult>(`/files/${encodeURIComponent(fileId)}/ingest`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function offloadIndexedKnowledgeFile(fileId: string, userId: string): Promise<FileMutationResult> {
+  return requestApi<FileMutationResult>(`/files/${encodeURIComponent(fileId)}/offload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function deleteKnowledgeFile(fileId: string, userId: string): Promise<FileMutationResult> {
+  return requestApi<FileMutationResult>(`/files/${encodeURIComponent(fileId)}`, {
+    method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId }),
   });
