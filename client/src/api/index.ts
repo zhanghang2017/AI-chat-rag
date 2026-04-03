@@ -6,5 +6,6 @@
  * @LastEditTime: 2026-03-31 14:17:10
  */
 export * from "./httpClient";
+export * from "./chat.api";
 export * from "./upload.api";
 export * from "./task.api";

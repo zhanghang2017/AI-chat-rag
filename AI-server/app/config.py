@@ -30,6 +30,8 @@ def _get_env_str(name: str, default: str) -> str:
 class Settings:
     """从环境变量读取并冻结运行时配置。"""
 
+    host: str = _get_env_str("HOST", "127.0.0.1")
+    port: int = int(os.getenv("PORT", "8000"))
     node_base_url: str = _get_env_str("NODE_BASE_URL", "http://127.0.0.1:3001/v1")
     ai_service_secret: str = _get_env_str("AI_SERVICE_SHARED_SECRET", "")
     chroma_persist_directory: str = str(
@@ -39,6 +41,11 @@ class Settings:
         "CHROMA_COLLECTION_NAME", "knowledge_chunks"
     )
     zhipu_api_key: str = _get_env_str("ZHIPUAI_API_KEY", "")
+    openai_api_key: str = _get_env_str("OPENAI_API_KEY", "")
+    openai_base_url: str = _get_env_str("OPENAI_BASE_URL", "")
+    openai_chat_model: str = _get_env_str("OPENAI_CHAT_MODEL", "")
+    chat_retrieval_top_k: int = max(1, int(os.getenv("CHAT_RETRIEVAL_TOP_K", "5")))
+    chat_context_message_limit: int = max(1, int(os.getenv("CHAT_CONTEXT_MESSAGE_LIMIT", "8")))
     chunk_size: int = int(os.getenv("INGEST_CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("INGEST_CHUNK_OVERLAP", "120"))
     embedding_batch_size: int = max(1, int(os.getenv("EMBEDDING_BATCH_SIZE", "64")))

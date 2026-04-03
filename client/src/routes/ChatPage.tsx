@@ -1,108 +1,281 @@
-import ChatHistoryDrawer from "../components/ChatHistoryDrawer";
-import LeftSidebar from "../components/LeftSidebar";
-import MaterialIcon from "../components/MaterialIcon";
-import TopHeader from "../components/TopHeader";
-import { citationChips } from "../data/mockData";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import type { ChatMessage, ChatSession } from "../api";
+import ChatComposer from "../components/chat/ChatComposer";
+import ChatHistoryDrawer from "../components/chat/ChatHistoryDrawer";
+import ChatMessageList from "../components/chat/ChatMessageList";
+import { useChatSubmit } from "../hooks/useChatSubmit";
+import {
+  loadChatSessions,
+  loadSessionMessages,
+  removeChatSession,
+  removeChatSessions,
+} from "../workservice/chatWorkservice";
 
+/**
+ * 聊天路由容器，负责管理会话、处理流式消息，并协调聊天页面的各个子组件。
+ * Chat route container responsible for session management, message streaming,
+ * and coordinating the chat layout subcomponents.
+ */
 const ChatPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const skipNextSessionLoadRef = useRef<string | null>(null);
+  const startNewChatAt =
+    typeof location.state === "object"
+    && location.state !== null
+    && "startNewChatAt" in location.state
+    && typeof location.state.startNewChatAt === "number"
+      ? location.state.startNewChatAt
+      : null;
+
+  // 历史抽屉中展示的全部聊天会话，按最近使用时间排序。
+  // All chat sessions shown in the history drawer, ordered by recency.
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+
+  // 当前选中的会话 id，用于展示消息并作为新消息发送目标。
+  // Session currently selected for viewing and sending new messages.
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  // 主会话区域当前渲染的消息列表。
+  // Messages currently rendered in the main conversation panel.
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // 底部输入框当前的草稿内容。
+  // Current text entered in the bottom composer.
+  const [draft, setDraft] = useState("");
+
+  // 流式请求进行中时的加载状态，用来锁定输入区避免重复提交。
+  // Loading flag used to lock the composer during a streaming request.
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 最近一次可恢复错误，会在对话面板中反馈给用户。
+  // Latest recoverable error surfaced to the user in the conversation panel.
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 是否处于“新聊天”空白态；该状态下不应自动选中历史会话。
+  // Whether the page is in blank new-chat mode; when true, history auto-select is suppressed.
+  const [isNewChatMode, setIsNewChatMode] = useState(false);
+
+  const { handleSubmit } = useChatSubmit({
+    activeSessionId,
+    draft,
+    isLoading,
+    onSessionCreated: (sessionId) => {
+      skipNextSessionLoadRef.current = sessionId;
+    },
+    setActiveSessionId,
+    setSessions,
+    setMessages,
+    setDraft,
+    setIsLoading,
+    setErrorMessage,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    /**
+     * 页面首次挂载时加载已保存的聊天会话，并默认打开最新会话，确保用户进入页面即可继续对话。
+     * Loads the saved chat sessions when the page first mounts and opens the
+     * newest session by default so the user lands on a usable conversation.
+     */
+    async function bootstrap() {
+      const nextSessions = await loadChatSessions();
+      if (cancelled) {
+        return;
+      }
+
+      setSessions(nextSessions);
+      if (!startNewChatAt && !isNewChatMode && nextSessions[0]) {
+        setActiveSessionId(nextSessions[0].id);
+      }
+    }
+
+    void bootstrap().catch((error: unknown) => {
+      if (!cancelled) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to load chat sessions");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isNewChatMode, startNewChatAt]);
+
+  useEffect(() => {
+    if (!startNewChatAt) {
+      return;
+    }
+
+    handleCreateSession();
+    navigate("/chat", { replace: true, state: null });
+  }, [navigate, startNewChatAt]);
+
+  useEffect(() => {
+    if (activeSessionId) {
+      setIsNewChatMode(false);
+    }
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setMessages([]);
+      return;
+    }
+
+    const sessionId = activeSessionId;
+    if (skipNextSessionLoadRef.current === sessionId) {
+      skipNextSessionLoadRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    /**
+     * 根据历史抽屉当前选中的会话拉取消息，保证主消息区与当前会话保持同步。
+     * Fetches messages for the session selected in the history drawer and keeps
+     * the main panel aligned with the current session id.
+     */
+    async function loadMessages() {
+      const nextMessages = await loadSessionMessages(sessionId);
+      if (!cancelled) {
+        setMessages(nextMessages);
+      }
+    }
+
+    void loadMessages().catch((error: unknown) => {
+      if (!cancelled) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to load messages");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId]);
+
+  /**
+   * 将页面重置为“新聊天”状态，但此时不会立刻创建持久化会话；真正的会话会在首次发送消息时创建。
+   * Resets the page into a new-chat state without immediately creating a
+   * persisted session. The actual session is created on the first message send.
+   */
+  function handleCreateSession() {
+    setIsNewChatMode(true);
+    setActiveSessionId(null);
+    setMessages([]);
+    setErrorMessage(null);
+  }
+
+  /**
+   * 选中历史会话时退出“新聊天”空白态。
+   * Exits blank new-chat mode when the user selects a session from history.
+   */
+  function handleSelectSession(sessionId: string) {
+    setIsNewChatMode(false);
+    setActiveSessionId(sessionId);
+  }
+
+  /**
+   * 在删除一个或多个会话后，决定哪个会话应继续保持激活；如果当前会话未被删除则继续保留，
+   * 否则回退到剩余会话中最新的一条。
+   * Chooses which session should stay active after one or more sessions have
+   * been deleted. If the current session survives, keep it selected; otherwise
+   * fall back to the newest remaining session.
+   */
+  function resolveNextActiveSessionId(nextSessions: ChatSession[], deletedIds: string[]) {
+    if (activeSessionId && !deletedIds.includes(activeSessionId)) {
+      return activeSessionId;
+    }
+
+    return nextSessions[0]?.id || null;
+  }
+
+  /**
+   * 在用户确认后删除单个会话，并同步更新当前激活会话以及右侧展示的消息列表。
+   * Deletes a single session after user confirmation and updates the active
+   * session and visible message list accordingly.
+   */
+  async function handleDeleteSession(sessionId: string) {
+    const confirmed = window.confirm("Delete this chat session and all of its messages?");
+    if (!confirmed) {
+      return false;
+    }
+
+    try {
+      await removeChatSession(sessionId);
+      const nextSessions = sessions.filter((session) => session.id !== sessionId);
+      const nextActiveSessionId = resolveNextActiveSessionId(nextSessions, [sessionId]);
+
+      setSessions(nextSessions);
+      setIsNewChatMode(!nextActiveSessionId);
+      setActiveSessionId(nextActiveSessionId);
+      if (!nextActiveSessionId) {
+        setMessages([]);
+      }
+      return true;
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete chat session");
+      return false;
+    }
+  }
+
+  /**
+   * 删除传入的会话集合，并重新计算下一个激活会话，避免右侧面板仍指向已删除会话。
+   * Deletes the provided sessions and recomputes the next active
+   * session so the right panel never points to a removed conversation.
+   */
+  async function handleDeleteSelectedSessions(sessionIds: string[]) {
+    if (!sessionIds.length) {
+      return false;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${sessionIds.length} selected chat session(s) and all related messages?`,
+    );
+    if (!confirmed) {
+      return false;
+    }
+
+    try {
+      await removeChatSessions(sessionIds);
+      const deletedIds = [...sessionIds];
+      const nextSessions = sessions.filter((session) => !deletedIds.includes(session.id));
+      const nextActiveSessionId = resolveNextActiveSessionId(nextSessions, deletedIds);
+
+      setSessions(nextSessions);
+      setIsNewChatMode(!nextActiveSessionId);
+      setActiveSessionId(nextActiveSessionId);
+      if (!nextActiveSessionId) {
+        setMessages([]);
+      }
+      return true;
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete chat sessions");
+      return false;
+    }
+  }
+
   return (
-    <div className="bg-white font-sans text-[#191c1e]">
-      <TopHeader active="chat" />
-      <div className="flex h-screen overflow-hidden pt-16">
-        <LeftSidebar active="chat" />
-        <main className="relative ml-64 flex min-w-0 flex-1 flex-col bg-white">
-          <section className="no-scrollbar flex-1 overflow-y-auto pb-32 pt-8">
-            <div className="mx-auto max-w-3xl space-y-10 px-6 md:px-12">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Cognitive Engine
-                  </span>
-                </div>
-                <div className="max-w-2xl text-[15px] font-medium leading-relaxed text-black">
-                  How can I assist your research today? I have access to your synchronized
-                  Knowledge Base and recent lab data.
-                </div>
-              </div>
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-white">
+      <main className="relative flex min-w-0 flex-1 flex-col bg-white">
+        <ChatMessageList messages={messages} errorMessage={errorMessage} isLoading={isLoading} />
 
-              <div className="flex flex-col items-end space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Researcher Request
-                  </span>
-                </div>
-                <div className="max-w-xl rounded-2xl border border-slate-100 bg-slate-50 px-6 py-4 text-sm text-slate-800 shadow-sm">
-                  Analyze the correlation between neural network density and emergent reasoning
-                  capabilities in the latest benchmarks.
-                </div>
-              </div>
+        <ChatComposer
+          draft={draft}
+          isLoading={isLoading}
+          onDraftChange={setDraft}
+          onSubmit={handleSubmit}
+        />
+      </main>
 
-              <div className="space-y-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Processing Insights
-                  </span>
-                </div>
-                <div className="space-y-6">
-                  <p className="max-w-2xl text-[15px] font-medium leading-relaxed text-black">
-                    Recent data suggests a non-linear scaling law. Emergence typically occurs at a
-                    specific parameter threshold relative to token density.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {citationChips.map((chip) => (
-                      <span
-                        key={chip.label}
-                        className="flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-tight text-slate-600"
-                      >
-                        <MaterialIcon name={chip.icon} className="!text-[14px]" />
-                        {chip.label}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="max-w-2xl rounded-2xl border border-slate-100 bg-slate-50/50 p-6">
-                    <div className="mb-3 flex items-center gap-2">
-                      <MaterialIcon name="auto_awesome" className="!text-sm text-slate-400" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                        Retrieved Source Fragment
-                      </span>
-                    </div>
-                    <p className="text-sm italic leading-relaxed text-slate-500">
-                      "The inflection point for abstract reasoning tasks was observed specifically when
-                      the model density reached 1.2e12 synaptic weights, provided the training data
-                      contained greater than 40% structured logic proofs..."
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent p-8">
-            <div className="pointer-events-auto mx-auto max-w-3xl">
-              <div className="relative flex items-center rounded-xl border border-slate-200 bg-white p-1.5 pl-4 shadow-sm transition-all focus-within:ring-1 focus-within:ring-black">
-                <textarea
-                  rows={1}
-                  placeholder="Ask the architect..."
-                  className="no-scrollbar h-[42px] flex-1 resize-none border-none bg-transparent px-0 py-2.5 text-sm focus:ring-0"
-                ></textarea>
-                <button className="flex items-center justify-center rounded-lg bg-black p-2 text-white transition-transform active:scale-95">
-                  <MaterialIcon name="send" className="!text-[18px]" />
-                </button>
-              </div>
-              <div className="mt-4 flex justify-center gap-6 opacity-40">
-                <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-                  GPT-4 Turbo Enhanced
-                </span>
-                <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-                  End-to-End Encrypted
-                </span>
-              </div>
-            </div>
-          </div>
-        </main>
-
-        <ChatHistoryDrawer />
-      </div>
+      <ChatHistoryDrawer
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={handleSelectSession}
+        onDeleteSession={handleDeleteSession}
+        onDeleteSelected={handleDeleteSelectedSessions}
+      />
     </div>
   );
 };

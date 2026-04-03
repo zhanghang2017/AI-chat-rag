@@ -28,8 +28,11 @@ router.get("/tasks/:taskId", fileController.getTask);
 // Chat routes map session and message operations.
 router.post("/chat/sessions", requireFingerprint, chatController.createSession);
 router.get("/chat/sessions", requireFingerprint, chatController.getSessions);
+router.delete("/chat/sessions", requireFingerprint, chatController.deleteSessions);
 router.post("/chat/sessions/:id/messages", chatController.createMessage);
 router.get("/chat/sessions/:id/messages", chatController.getMessages);
+router.delete("/chat/sessions/:id", requireFingerprint, chatController.deleteSession);
+router.post("/chat/sessions/:id/completions", requireFingerprint, chatController.completeSessionChat);
 
 // AI proxy routes are isolated for future Python service evolution.
 router.use("/ai", aiRouter);

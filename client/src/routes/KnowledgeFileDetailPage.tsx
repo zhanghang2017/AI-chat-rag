@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { FileParseStatus, KnowledgeFileDetail } from "../api";
-import LeftSidebar from "../components/LeftSidebar";
-import MaterialIcon from "../components/MaterialIcon";
-import TopHeader from "../components/TopHeader";
+import MaterialIcon from "../components/common/MaterialIcon";
 import { fetchKnowledgeFileDetailById } from "../workservice/uploadWorkservice";
 
 const CHUNKS_PER_PAGE = 4;
@@ -87,12 +85,8 @@ const KnowledgeFileDetailPage = () => {
   const paginationItems = useMemo(() => buildPagination(page, totalPages), [page, totalPages]);
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] font-sans text-[#191c1e]">
-      <TopHeader active="knowledge" />
-      <LeftSidebar active="knowledge" showSettings />
-
-      <main className="ml-0 flex min-h-screen flex-col md:ml-64">
-        <div className="mx-auto w-full max-w-7xl flex-1 px-4 pb-8 pt-20 md:px-8 md:pb-10 md:pt-24 lg:px-10">
+    <section className="min-h-[calc(100vh-4rem)] bg-[#f7f9fb]">
+      <div className="mx-auto w-full max-w-7xl px-4 pb-8 pt-8 md:px-8 md:pb-10 md:pt-10 lg:px-10">
           {isLoading && (
             <div className="rounded-3xl bg-white px-8 py-14 text-center text-sm text-slate-500 shadow-sm">
               正在加载文件详情...
@@ -232,9 +226,8 @@ const KnowledgeFileDetailPage = () => {
               </section>
             </>
           )}
-        </div>
-      </main>
-    </div>
+      </div>
+    </section>
   );
 };
 

@@ -1,9 +1,13 @@
-"""FastAPI 入口，暴露健康检查与摄取任务接口。"""
+
+"""FastAPI 入口，暴露健康检查、摄取与聊天接口。"""
 
 from __future__ import annotations
-
+import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
+from fastapi.responses import StreamingResponse
 
+from app.chat.schemas import ChatRequest
+from app.chat.service import stream_chat_events
 from app.config import settings
 from app.knowledge_base.ingestion_service import process_knowledge_ingestion_job
 from app.knowledge_base.schemas import IngestionJob
@@ -56,3 +60,20 @@ def delete_file_vectors(
         "deleted": True,
         "fileId": file_id,
     }
+
+
+@app.post("/chat/stream")
+async def stream_chat(
+    payload: ChatRequest,
+    x_ai_service_secret: str | None = Header(default=None),
+) -> StreamingResponse:
+    """执行一次基于知识库检索增强的流式聊天。"""
+
+    if settings.ai_service_secret and x_ai_service_secret != settings.ai_service_secret:
+        raise HTTPException(status_code=401, detail="Invalid AI service secret")
+
+    return StreamingResponse(stream_chat_events(payload), media_type="text/event-stream")
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host=settings.host, port=settings.port, reload=True)

@@ -26,7 +26,20 @@ build/
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+.venv/
+venv/
+**/.venv/
+**/venv/
 ai_chroma/
 __pycache__/
 *.pyc
+
+# Local environment files
 .env
+
+# Local runtime data
+upload/
+*.db
+*.db-journal

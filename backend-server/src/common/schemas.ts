@@ -165,10 +165,42 @@ export const sessionParamsSchema = z.object({
   id: z.string().uuid(),
 });
 
+export const deleteSessionsBodySchema = z
+  .object({
+    userId: z.string().min(1).optional(),
+    browserFingerprintHash: z.string().min(1).optional(),
+    sessionIds: z.array(z.string().uuid()).min(1),
+  })
+  .superRefine((data, ctx) => {
+    if (!resolveRequiredUserId(data)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["userId"], message: "Required" });
+    }
+  })
+  .transform((data) => ({
+    userId: resolveRequiredUserId(data)!,
+    sessionIds: data.sessionIds,
+  }));
+
 export const messageBodySchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string().min(1),
 });
+
+export const chatCompletionBodySchema = z
+  .object({
+    content: z.string().min(1),
+    userId: z.string().min(1).optional(),
+    browserFingerprintHash: z.string().min(1).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!resolveRequiredUserId(data)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["userId"], message: "Required" });
+    }
+  })
+  .transform((data) => ({
+    content: data.content,
+    userId: resolveRequiredUserId(data)!,
+  }));
 
 export const messageListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -181,11 +213,16 @@ export const aiChatBodySchema = z
     sessionId: z.string().uuid().optional(),
     userId: z.string().min(1).optional(),
     browserFingerprintHash: z.string().min(1).optional(),
+    recentMessages: z.array(z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().min(1),
+    })).optional(),
   })
   .transform((data) => ({
     query: data.query,
     sessionId: data.sessionId,
     userId: data.userId ?? data.browserFingerprintHash,
+    recentMessages: data.recentMessages,
   }));
 
 const taskStatusEnum = z.enum(["queued", "running", "success", "failed", "cancelled"]);
