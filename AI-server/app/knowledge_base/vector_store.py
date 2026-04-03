@@ -48,11 +48,18 @@ class KnowledgeVectorStore:
                 ids=ids[start:end],
             )
 
-    def retrieve_chunks(self, query: str, user_id: str, top_k: int = 5) -> list[tuple[Document, float]]:
-        """按用户维度检索最相关的知识库分块。"""
+    def retrieve_chunks(
+        self,
+        query: str,
+        user_id: str,
+        top_k: int = 5,
+        score_threshold: float = 0.35,
+    ) -> list[tuple[Document, float]]:
+        """按用户维度检索最相关的知识库分块，并过滤低相关结果。"""
 
-        return self._store.similarity_search_with_score(
+        return self._store.similarity_search_with_relevance_scores(
             query=query,
             k=top_k,
             filter={"user_id": user_id},
+            score_threshold=score_threshold,
         )

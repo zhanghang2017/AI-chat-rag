@@ -11,7 +11,12 @@ def build_chat_sources(payload: ChatRequest) -> list[ChatSource]:
     """根据用户问题从知识库检索来源，并进行去重整理。"""
 
     store = KnowledgeVectorStore()
-    matches = store.retrieve_chunks(payload.query, payload.userId, settings.chat_retrieval_top_k)
+    matches = store.retrieve_chunks(
+        payload.query,
+        payload.userId,
+        settings.chat_retrieval_top_k,
+        settings.chat_retrieval_score_threshold,
+    )
     sources: list[ChatSource] = []
 
     for document, _score in matches:
@@ -31,6 +36,7 @@ def build_chat_sources(payload: ChatRequest) -> list[ChatSource]:
 
     deduped: list[ChatSource] = []
     seen: set[tuple[str | None, int | None, int | None, str]] = set()
+
     for source in sources:
         key = (source.fileId, source.pageNumber, source.chunkIndex, source.snippet)
         if key in seen:

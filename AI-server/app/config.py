@@ -25,6 +25,21 @@ def _get_env_str(name: str, default: str) -> str:
     return normalized or default
 
 
+def _get_env_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    """读取浮点环境变量，并约束到指定区间。"""
+
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    try:
+        value = float(raw_value)
+    except ValueError:
+        return default
+
+    return min(maximum, max(minimum, value))
+
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -45,6 +60,9 @@ class Settings:
     openai_base_url: str = _get_env_str("OPENAI_BASE_URL", "")
     openai_chat_model: str = _get_env_str("OPENAI_CHAT_MODEL", "")
     chat_retrieval_top_k: int = max(1, int(os.getenv("CHAT_RETRIEVAL_TOP_K", "5")))
+    chat_retrieval_score_threshold: float = _get_env_float(
+        "CHAT_RETRIEVAL_SCORE_THRESHOLD", 0.35, 0.0, 1.0
+    )
     chat_context_message_limit: int = max(1, int(os.getenv("CHAT_CONTEXT_MESSAGE_LIMIT", "8")))
     chunk_size: int = int(os.getenv("INGEST_CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("INGEST_CHUNK_OVERLAP", "120"))

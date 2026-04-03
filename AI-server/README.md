@@ -24,20 +24,20 @@ AI-server/
 ├─ .env.example
 ├─ ai_chroma/
 └─ app/
-	├─ config.py
-	├─ chat/
-	│  ├─ llm.py
-	│  ├─ prompts.py
-	│  ├─ retriever.py
-	│  ├─ schemas.py
-	│  └─ service.py
-	└─ knowledge_base/
-		├─ document_loader.py
-		├─ embedding_model.py
-		├─ ingestion_callback_client.py
-		├─ ingestion_service.py
-		├─ schemas.py
-		└─ vector_store.py
+   ├─ config.py
+   ├─ chat/
+   │  ├─ llm.py
+   │  ├─ prompts.py
+   │  ├─ retriever.py
+   │  ├─ schemas.py
+   │  └─ service.py
+   └─ knowledge_base/
+      ├─ document_loader.py
+      ├─ embedding_model.py
+      ├─ ingestion_callback_client.py
+      ├─ ingestion_service.py
+      ├─ schemas.py
+      └─ vector_store.py
 ```
 
 ## 主要接口
@@ -54,12 +54,14 @@ AI-server/
 - 必填，知识库入库功能需要：`ZHIPUAI_API_KEY`
 - 必填，聊天功能需要：`OPENAI_API_KEY`
 - 建议显式填写，聊天功能通常需要：`OPENAI_CHAT_MODEL`
-- 可选，有默认值：`NODE_BASE_URL`、`CHROMA_PERSIST_DIRECTORY`、`CHROMA_COLLECTION_NAME`、`INGEST_CHUNK_SIZE`、`INGEST_CHUNK_OVERLAP`、`EMBEDDING_BATCH_SIZE`、`NODE_CALLBACK_TIMEOUT_SECONDS`、`CHAT_RETRIEVAL_TOP_K`、`CHAT_CONTEXT_MESSAGE_LIMIT`、`HOST`、`PORT`
+- 可选，有默认值：`NODE_BASE_URL`、`CHROMA_PERSIST_DIRECTORY`、`CHROMA_COLLECTION_NAME`、`INGEST_CHUNK_SIZE`、`INGEST_CHUNK_OVERLAP`、`EMBEDDING_BATCH_SIZE`、`NODE_CALLBACK_TIMEOUT_SECONDS`、`CHAT_RETRIEVAL_TOP_K`、`CHAT_RETRIEVAL_SCORE_THRESHOLD`、`CHAT_CONTEXT_MESSAGE_LIMIT`、`HOST`、`PORT`
 - 可选，按部署情况填写：`AI_SERVICE_SHARED_SECRET`、`OPENAI_BASE_URL`
 
 如果你只验证知识库入库，不跑聊天，可以先不填 `OPENAI_API_KEY`。
 
 如果你只验证聊天，不跑新的向量入库，可以先不填 `ZHIPUAI_API_KEY`。
+
+`CHAT_RETRIEVAL_TOP_K` 控制最多返回多少个候选 chunk；`CHAT_RETRIEVAL_SCORE_THRESHOLD` 控制最低相关性阈值，范围是 `0` 到 `1`，越高越严格。若问题与知识库无关，命中结果可能少于 `top_k`，甚至为 `0`。
 
 ## 安装依赖
 
